@@ -23,15 +23,15 @@ const paths = {
 
 
 const taskminifyJs = {
-  src             : paths.src + paths.js + '**/*-4debugging.js',
-  //exclude         : paths.src + paths.js + 'temp/*.js',
+  src             : paths.src + paths.js + '**/*.js',
+  exclude         : paths.src + paths.js + 'temp/*temp.js',
   dest            : paths.dest + paths.js,
   rename          : {
       basenameFind            : '-4debugging',
       basenameReplace         : '',
       extension               : '.min.js',
-      denyDirName             : 'deny_from_build',
-      denyNewExtension        : '.min.denied.js'
+      denyDirName             : 'temp',
+      denyNewExtension        : '.min.temp.js'
   },
   deniedDest    : paths.src + paths.js,
   stripDebugStart : 'DebugOnlyCode - START',
