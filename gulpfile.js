@@ -2,14 +2,17 @@
 //'use strict';
 
   //Import gulp and its plugins
-  const { watch, series } = require('gulp'); 
-  gulp          = require('gulp'); 
-  stripdebug    = require('gulp-strip-debug');
-  stripcode     = require('gulp-strip-code');
-  rename        = require('gulp-rename');
-  babel         = require('gulp-babel');
-  uglify        = require('gulp-uglify');
-  log           = require('fancy-log');
+const { watch, series } = require('gulp'); 
+gulp          = require('gulp'); 
+stripdebug    = require('gulp-strip-debug');
+stripcode     = require('gulp-strip-code');
+rename        = require('gulp-rename');
+babel         = require('gulp-babel');
+uglify        = require('gulp-uglify');
+log           = require('fancy-log');
+gulpif        = require('gulp-if');
+using         = require('gulp-using');
+
 
 const paths = {
   src   : 'src/',
@@ -17,28 +20,42 @@ const paths = {
   js    : 'assets/js/'
 }
 
+
+
 const taskminifyJs = {
   src             : paths.src + paths.js + '**/*-4debugging.js',
-  exclude         : '**/temp/**'
+  //exclude         : paths.src + paths.js + 'temp/*.js',
   dest            : paths.dest + paths.js,
-  renameFind      : '-4debugging',
-  renameReplace   : '',
-  renameExtension : '.min.js',
+  rename          : {
+      basenameFind            : '-4debugging',
+      basenameReplace         : '',
+      extension               : '.min.js',
+      denyDirName             : 'deny_from_build',
+      denyNewExtension        : '.min.denied.js'
+  },
+  deniedDest    : paths.src + paths.js,
   stripDebugStart : 'DebugOnlyCode - START',
-  stripDebugEnd   : 'DebugOnlyCode - START',
+  stripDebugEnd   : 'DebugOnlyCode - END',
 };
 
 function renameFn( path, settings ) {
    //path.dirname += "/ciao";
-  oldFileName = path.basename+path.extname;
-  path.basename = path.basename.replace(settings.renameFind, settings.renameReplace);
-  path.extname = settings.renameExtension;
-  log('Renaming: '+oldFileName+' --> '+path.basename+path.extname );
+  oldFileName = path.dirname+'/'+path.basename+path.extname;
+  path.basename = path.basename.replace( settings.basenameFind, settings.basenameReplace );
+  path.extname = settings.extension;
+  if( ( '/'+path.dirname+'/' ).includes( '/'+settings.denyDirName+'/' ) ) {
+    path.extname = settings.denyNewExtension
+  }
+  log( 'Renaming: '+oldFileName+' --> '+path.dirname+'/'+path.basename+path.extname );
 }
 
 function minifyJs( settings ) {
-  return gulp.src( settings.src, '!'+exclude, {base:'.'} )
-    .pipe( rename( function ( path ) { renameFn( path, settings ) } ) )
+  src = [settings.src];
+  if( settings.exclude ) {
+    src[src.length] = '!'+settings.exclude;
+  }
+  return gulp.src( src )
+    .pipe( rename( function ( path ) { renameFn( path, settings.rename ) } ) )
     .pipe( stripdebug() )
     .pipe( stripcode( {
       start_comment: settings.stripDebugStart,
@@ -48,7 +65,14 @@ function minifyJs( settings ) {
     .pipe( babel( { presets: ['@babel/env'] } ) )
     .pipe( uglify() )
     .on( 'end', function() { log( 'Converted to ES5 and Uglified' ); } )
-    .pipe( gulp.dest( settings.dest) )
+    .pipe(gulpif(['**/*', '!**/*'+settings.rename.extension],
+      gulp.dest(settings.deniedDest)
+      //.pipe( using({prefix:'Denied From build: ', color:'green'}) )
+    ) )
+    .pipe(gulpif('**/*'+settings.rename.extension, 
+      gulp.dest(settings.dest)
+    ) )
+    //.pipe(gulp.dest(settings.dest))
     .on( 'end', function(){ log('Finished'); } );
 }
 

@@ -13,9 +13,11 @@
     "babel-core": "^6.26.3",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
+    "gulp-if": "^3.0.0",
     "gulp-strip-code": "^0.1.4",
     "gulp-strip-debug": "^3.0.0",
-    "gulp-uglify": "^3.0.2"
+    "gulp-uglify": "^3.0.2",
+    "gulp-using": "^0.1.1"
   },
   "dependencies": {
     "@babel/preset-env": "^7.9.6",
