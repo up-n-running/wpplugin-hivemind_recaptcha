@@ -1,7 +1,6 @@
 // Gulp.js configuration
-//'use strict';
 
-  //Import gulp and its plugins
+//Import gulp and its plugins
 const { watch, series } = require('gulp'); 
 gulp          = require('gulp'); 
 stripdebug    = require('gulp-strip-debug');
@@ -15,17 +14,15 @@ using         = require('gulp-using');
 
 
 const paths = {
-  src   : 'src/',
-  dest  : 'build/',
+  src   : '../src/',
+  dest  : '../build/',
   js    : 'assets/js/'
 }
 
-
-
-const taskminifyJs = {
-  src             : paths.src + paths.js + '**/*.js',
-  exclude         : paths.src + paths.js + 'temp/*temp.js',
+const minifyJsSettings = {
+  src             : paths.src  + paths.js + '**/!(*.min.temp)*.js',
   dest            : paths.dest + paths.js,
+  deniedDest      : paths.src  + paths.js,
   rename          : {
       basenameFind            : '-4debugging',
       basenameReplace         : '',
@@ -33,59 +30,63 @@ const taskminifyJs = {
       denyDirName             : 'temp',
       denyNewExtension        : '.min.temp.js'
   },
-  deniedDest    : paths.src + paths.js,
-  stripDebugStart : 'DebugOnlyCode - START',
-  stripDebugEnd   : 'DebugOnlyCode - END',
+  srtipDebug      : {
+    start : 'DebugOnlyCode - START',
+    end   : 'DebugOnlyCode - END'
+  }
 };
 
 function renameFn( path, settings ) {
-   //path.dirname += "/ciao";
+  //do a search and replace on basename and change file extension if the file path contains a 'denied' directory like ..../temp/....
   oldFileName = path.dirname+'/'+path.basename+path.extname;
-  path.basename = path.basename.replace( settings.basenameFind, settings.basenameReplace );
-  path.extname = settings.extension;
-  if( ( '/'+path.dirname+'/' ).includes( '/'+settings.denyDirName+'/' ) ) {
+  if( settings.basenameFind && settings.basenameReplace ) {
+    path.basename = path.basename.replace( settings.basenameFind, settings.basenameReplace );
+  }
+  if( settings.extension ) {
+    path.extname = settings.extension;
+  }
+  if( settings.denyDirName && settings.denyNewExtension && ( '/'+path.dirname+'/' ).includes( '/'+settings.denyDirName+'/' ) )  {
     path.extname = settings.denyNewExtension
   }
   log( 'Renaming: '+oldFileName+' --> '+path.dirname+'/'+path.basename+path.extname );
 }
 
 function minifyJs( settings ) {
-  src = [settings.src];
-  if( settings.exclude ) {
-    src[src.length] = '!'+settings.exclude;
-  }
-  return gulp.src( src )
+  //build up the source array allowing the user to pass in a non-array
+  aourceArray = Array.isArray(settings.src) ? settings.src : [settings.src];
+
+  //do the magic
+  return gulp.src( aourceArray )
     .pipe( rename( function ( path ) { renameFn( path, settings.rename ) } ) )
     .pipe( stripdebug() )
     .pipe( stripcode( {
-      start_comment: settings.stripDebugStart,
-      end_comment: settings.stripDebugEnd
+      start_comment: settings.srtipDebug.start,
+      end_comment: settings.srtipDebug.end,
     } ) )
     .on( 'end', function() { log( 'Stripped Debug' ); } )
     .pipe( babel( { presets: ['@babel/env'] } ) )
     .pipe( uglify() )
     .on( 'end', function() { log( 'Converted to ES5 and Uglified' ); } )
+    //send .min.temp.js files back to src and all other fiels to dest
     .pipe(gulpif(['**/*', '!**/*'+settings.rename.extension],
       gulp.dest(settings.deniedDest)
-      //.pipe( using({prefix:'Denied From build: ', color:'green'}) )
     ) )
     .pipe(gulpif('**/*'+settings.rename.extension, 
       gulp.dest(settings.dest)
     ) )
-    //.pipe(gulp.dest(settings.dest))
     .on( 'end', function(){ log('Finished'); } );
 }
 
 
 // JavaScript processing
 gulp.task('minifyJs', () => {
-  return minifyJs( taskminifyJs );
+  return minifyJs( minifyJsSettings );
 });
 
 
 exports.default = function() {
   // You can use a single task
-  watch(taskminifyJs.src, { ignoreInitial: false }, gulp.series('minifyJs') );
+  watch(minifyJsSettings.src, { ignoreInitial: false }, gulp.series('minifyJs') );
 };
 
 
